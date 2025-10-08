@@ -1,0 +1,323 @@
+{
+  "info": {
+    "name": "Meeting Module API",
+    "description": "Complete API collection for testing video meeting functionality",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{jwt_token}}",
+        "type": "string"
+      }
+    ]
+  },
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://localhost:5000",
+      "type": "string"
+    },
+    {
+      "key": "jwt_token",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "meeting_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "meeting_code",
+      "value": "",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "Authentication",
+      "item": [
+        {
+          "name": "Login User",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    const response = pm.response.json();",
+                  "    if (response.data && response.data.accessToken) {",
+                  "        pm.collectionVariables.set('jwt_token', response.data.accessToken);",
+                  "        console.log('JWT Token saved:', response.data.accessToken);",
+                  "    }",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"user@example.com\",\n  \"password\": \"password123\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/auth/login",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "auth", "login"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Meeting Management",
+      "item": [
+        {
+          "name": "Create Meeting",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 201) {",
+                  "    const response = pm.response.json();",
+                  "    if (response.data) {",
+                  "        pm.collectionVariables.set('meeting_id', response.data._id);",
+                  "        pm.collectionVariables.set('meeting_code', response.data.meetingCode);",
+                  "        console.log('Meeting created:', response.data.meetingCode);",
+                  "    }",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Test Meeting\",\n  \"description\": \"Testing meeting functionality\",\n  \"scheduledAt\": \"2024-01-15T10:00:00Z\",\n  \"maxParticipants\": 10,\n  \"isPublic\": true,\n  \"allowGuests\": true,\n  \"settings\": {\n    \"muteOnJoin\": false,\n    \"videoOnJoin\": true,\n    \"allowParticipantScreenShare\": true,\n    \"allowParticipantChat\": true\n  }\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/meeting/create",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "meeting", "create"]
+            }
+          }
+        },
+        {
+          "name": "Get Meeting by Code",
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/api/v1/meeting/code/{{meeting_code}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "meeting", "code", "{{meeting_code}}"]
+            }
+          }
+        },
+        {
+          "name": "Join Meeting",
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"meetingCode\": \"{{meeting_code}}\",\n  \"guestName\": \"John Doe\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/meeting/join",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "meeting", "join"]
+            }
+          }
+        },
+        {
+          "name": "Get Meeting Details",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/api/v1/meeting/{{meeting_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "meeting", "{{meeting_id}}"]
+            }
+          }
+        },
+        {
+          "name": "Update Meeting",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Updated Meeting Title\",\n  \"description\": \"Updated description\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/meeting/{{meeting_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "meeting", "{{meeting_id}}"]
+            }
+          }
+        },
+        {
+          "name": "Start Meeting",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/meeting/{{meeting_id}}/start",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "meeting", "{{meeting_id}}", "start"]
+            }
+          }
+        },
+        {
+          "name": "End Meeting",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/meeting/{{meeting_id}}/end",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "meeting", "{{meeting_id}}", "end"]
+            }
+          }
+        },
+        {
+          "name": "Delete Meeting",
+          "request": {
+            "method": "DELETE",
+            "url": {
+              "raw": "{{base_url}}/api/v1/meeting/{{meeting_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "meeting", "{{meeting_id}}"]
+            }
+          }
+        },
+        {
+          "name": "List All Meetings (Admin)",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/api/v1/meeting?page=1&limit=10",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "meeting"],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "limit",
+                  "value": "10"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get My Meetings",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/api/v1/meeting/my-meetings",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "meeting", "my-meetings"]
+            }
+          }
+        },
+        {
+          "name": "Get Meeting Stats",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/api/v1/meeting/stats",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "meeting", "stats"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "WebRTC Testing",
+      "item": [
+        {
+          "name": "Test Socket Connection",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/socket.io/?EIO=4&transport=polling",
+              "host": ["{{base_url}}"],
+              "path": ["socket.io", ""],
+              "query": [
+                {
+                  "key": "EIO",
+                  "value": "4"
+                },
+                {
+                  "key": "transport",
+                  "value": "polling"
+                }
+              ]
+            }
+          }
+        }
+      ]
+    }
+  ]
+}
