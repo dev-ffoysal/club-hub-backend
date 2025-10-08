@@ -1,0 +1,1910 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Video Meeting - WebRTC</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow-x: hidden;
+        }
+
+        @media (max-width: 768px) {
+            body {
+                padding: 10px;
+            }
+        }
+
+        .header {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            padding: 1rem 2rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            color: white;
+        }
+
+        @media (max-width: 768px) {
+            .header {
+                padding: 0.75rem 1rem;
+                flex-direction: column;
+                gap: 0.5rem;
+                text-align: center;
+            }
+        }
+
+        .meeting-info {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .meeting-code {
+            background: rgba(255, 255, 255, 0.2);
+            padding: 0.5rem 1rem;
+            border-radius: 20px;
+            font-weight: bold;
+        }
+
+        .main-content {
+            flex: 1;
+            display: flex;
+            padding: 1rem;
+            gap: 1rem;
+        }
+
+        @media (max-width: 768px) {
+            .main-content {
+                flex-direction: column;
+                padding: 0.5rem;
+                gap: 0.5rem;
+            }
+        }
+
+        .video-grid {
+            flex: 1;
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 1rem;
+            align-content: start;
+        }
+
+        @media (max-width: 768px) {
+            .video-grid {
+                grid-template-columns: 1fr;
+                gap: 0.5rem;
+            }
+        }
+
+        .video-container {
+            position: relative;
+            background: #1a1a1a;
+            border-radius: 12px;
+            overflow: hidden;
+            aspect-ratio: 16/9;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+            min-height: 200px;
+        }
+
+        @media (max-width: 768px) {
+            .video-container {
+                border-radius: 8px;
+                min-height: 150px;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .video-container {
+                min-height: 120px;
+                border-radius: 6px;
+            }
+        }
+
+        .video-container.local {
+            border: 2px solid #4CAF50;
+        }
+
+        .video-element {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .video-overlay {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: linear-gradient(transparent, rgba(0, 0, 0, 0.7));
+            color: white;
+            padding: 1rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .participant-name {
+            font-weight: bold;
+        }
+
+        .media-status {
+            display: flex;
+            gap: 0.5rem;
+        }
+
+        .media-indicator {
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+        }
+
+        .media-indicator.active {
+            background: #4CAF50;
+        }
+
+        .media-indicator.inactive {
+            background: #f44336;
+        }
+
+        .no-video-placeholder {
+            width: 100%;
+            height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: linear-gradient(45deg, #2c3e50, #34495e);
+            color: white;
+            font-size: 3rem;
+        }
+
+        .controls {
+            position: fixed;
+            bottom: 2rem;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            gap: 1rem;
+            background: rgba(0, 0, 0, 0.8);
+            padding: 1rem 2rem;
+            border-radius: 50px;
+            backdrop-filter: blur(10px);
+        }
+
+        @media (max-width: 768px) {
+            .controls {
+                bottom: 1rem;
+                padding: 0.75rem 1rem;
+                gap: 0.5rem;
+            }
+        }
+
+        .control-btn {
+            width: 50px;
+            height: 50px;
+            border: none;
+            border-radius: 50%;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.2rem;
+            touch-action: manipulation;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        @media (max-width: 768px) {
+            .control-btn {
+                width: 45px;
+                height: 45px;
+                font-size: 1.1rem;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .control-btn {
+                width: 40px;
+                height: 40px;
+                font-size: 1rem;
+            }
+        }
+
+        .control-btn.active {
+            background: #4CAF50;
+            color: white;
+        }
+
+        .control-btn.inactive {
+            background: #f44336;
+            color: white;
+        }
+
+        .control-btn.neutral {
+            background: #666;
+            color: white;
+        }
+
+        .control-btn:hover {
+            transform: scale(1.1);
+        }
+
+        .sidebar {
+            width: 300px;
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border-radius: 12px;
+            padding: 1rem;
+            color: white;
+        }
+
+        @media (max-width: 768px) {
+            .sidebar {
+                width: 100%;
+                order: -1;
+                padding: 0.5rem;
+            }
+        }
+
+        .join-form {
+            background: rgba(255, 255, 255, 0.1);
+            padding: 2rem;
+            border-radius: 12px;
+            margin: 2rem;
+            color: white;
+            max-width: 500px;
+            width: 100%;
+        }
+
+        @media (max-width: 768px) {
+            .join-form {
+                margin: 1rem;
+                padding: 1.5rem;
+            }
+        }
+
+        .form-group {
+            margin-bottom: 1rem;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-weight: bold;
+        }
+
+        .form-group input {
+            width: 100%;
+            padding: 0.75rem;
+            border: none;
+            border-radius: 8px;
+            background: rgba(255, 255, 255, 0.2);
+            color: white;
+            font-size: 1rem;
+            box-sizing: border-box;
+            touch-action: manipulation;
+        }
+
+        @media (max-width: 768px) {
+            .form-group input {
+                padding: 1rem;
+                font-size: 16px; /* Prevents zoom on iOS */
+            }
+        }
+
+        .form-group input::placeholder {
+            color: rgba(255, 255, 255, 0.7);
+        }
+
+        .media-settings {
+            display: flex;
+            gap: 1rem;
+            margin: 1rem 0;
+        }
+
+        .media-toggle {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .join-btn {
+            width: 100%;
+            padding: 1rem;
+            border: none;
+            border-radius: 8px;
+            background: #4CAF50;
+            color: white;
+            font-size: 1.1rem;
+            font-weight: bold;
+            cursor: pointer;
+            transition: background 0.3s ease;
+            touch-action: manipulation;
+            -webkit-tap-highlight-color: transparent;
+            box-sizing: border-box;
+        }
+
+        .join-btn:hover {
+            background: #45a049;
+        }
+
+        .join-btn:active {
+            transform: translateY(1px);
+        }
+
+        @media (max-width: 768px) {
+            .join-btn {
+                padding: 1.25rem;
+                font-size: 1.2rem;
+                border-radius: 10px;
+            }
+        }
+
+        .participants-list {
+            margin-top: 1rem;
+        }
+
+        .participant-item {
+            padding: 0.5rem;
+            margin: 0.5rem 0;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 8px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .hidden {
+            display: none;
+        }
+
+        .error-message {
+            background: #f44336;
+            color: white;
+            padding: 1rem;
+            border-radius: 8px;
+            margin: 1rem 0;
+        }
+
+        .success-message {
+            background: #4CAF50;
+            color: white;
+            padding: 1rem;
+            border-radius: 8px;
+            margin: 1rem 0;
+        }
+    </style>
+</head>
+<body>
+    <!-- Join Form (shown initially) -->
+    <div id="joinForm" class="join-form">
+        <h2>Join Video Meeting</h2>
+        <div class="form-group">
+            <label for="authToken">JWT Token (optional for authenticated users)</label>
+            <input type="text" id="authToken" placeholder="JWT Token (optional for authenticated users)">
+        </div>
+        <div class="form-group">
+            <label for="meetingCode">Meeting Code</label>
+            <input type="text" id="meetingCode" placeholder="Enter meeting code" required>
+        </div>
+        <div class="form-group">
+            <label for="guestName">Your Name</label>
+            <input type="text" id="guestName" placeholder="Enter your name" required>
+        </div>
+        <div class="form-group">
+            <label for="meetingPassword">Meeting Password</label>
+            <input type="password" id="meetingPassword" placeholder="Meeting password (if required)">
+        </div>
+        <div class="media-settings">
+            <div class="media-toggle">
+                <input type="checkbox" id="cameraToggle" checked>
+                <label for="cameraToggle">📹 Camera</label>
+            </div>
+            <div class="media-toggle">
+                <input type="checkbox" id="microphoneToggle" checked>
+                <label for="microphoneToggle">🎤 Microphone</label>
+            </div>
+        </div>
+        <button class="join-btn" onclick="joinMeeting()">Join Meeting</button>
+        <div id="joinError" class="error-message hidden"></div>
+    </div>
+
+    <!-- Meeting Interface (hidden initially) -->
+    <div id="meetingInterface" class="hidden">
+        <div class="header">
+            <div class="meeting-info">
+                <h2>Video Meeting</h2>
+                <div class="meeting-code" id="currentMeetingCode"></div>
+            </div>
+            <div>
+                <span id="participantCount">0 participants</span>
+            </div>
+        </div>
+
+        <div class="main-content">
+            <div class="video-grid" id="videoGrid">
+                <!-- Local video will be added here -->
+            </div>
+
+            <div class="sidebar">
+                <h3>Participants</h3>
+                <div class="participants-list" id="participantsList">
+                    <!-- Participants will be listed here -->
+                </div>
+            </div>
+        </div>
+
+        <div class="controls">
+            <button class="control-btn active" id="cameraBtn" onclick="toggleCamera()" title="Toggle Camera">
+                📹
+            </button>
+            <button class="control-btn active" id="microphoneBtn" onclick="toggleMicrophone()" title="Toggle Microphone">
+                🎤
+            </button>
+            <button class="control-btn neutral" id="screenShareBtn" onclick="toggleScreenShare()" title="Share Screen">
+                🖥️
+            </button>
+            <button class="control-btn neutral" onclick="leaveMeeting()" title="Leave Meeting">
+                📞
+            </button>
+        </div>
+    </div>
+
+    <!-- Socket.IO and WebRTC Scripts -->
+    <script src="/socket.io/socket.io.js"></script>
+    <script>
+        // Global variables
+        let socket;
+        let localStream;
+        let peerConnections = new Map();
+        let pendingIceCandidates = new Map(); // Store ICE candidates that arrive before remote description
+        let currentMeetingCode;
+        let localParticipant;
+        let mediaSettings = {
+            camera: true,
+            microphone: true,
+            screenShare: false
+        };
+        
+        // Message deduplication tracking to prevent duplicate signaling
+        let processedOffers = new Set();
+        let processedAnswers = new Set();
+        let lastOfferTimestamp = new Map();
+        let lastAnswerTimestamp = new Map();
+
+        // Detect if user is on mobile network for aggressive TURN configuration
+        function isMobileNetwork() {
+            const connection = navigator.connection || navigator.mozConnection || navigator.webkitConnection;
+            if (connection) {
+                // Mobile data types: cellular, 2g, 3g, 4g, 5g
+                return ['cellular', '2g', '3g', '4g', '5g'].includes(connection.effectiveType) || 
+                       ['cellular', '2g', '3g', '4g', '5g'].includes(connection.type);
+            }
+            // Fallback: check user agent for mobile devices
+            return /Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+        }
+
+        // Enhanced WebRTC configuration for cross-network connectivity
+        function getRTCConfiguration() {
+            const isMobile = isMobileNetwork();
+            console.log('🔍 Mobile network detected:', isMobile);
+            console.log('🌐 Configuring for cross-network connectivity');
+            
+            const baseConfig = {
+                iceServers: [
+                    // Google STUN servers
+                    { urls: 'stun:stun.l.google.com:19302' },
+                    { urls: 'stun:stun1.l.google.com:19302' },
+                    { urls: 'stun:stun2.l.google.com:19302' },
+                    { urls: 'stun:stun3.l.google.com:19302' },
+                    { urls: 'stun:stun4.l.google.com:19302' },
+                    
+                    // Additional public STUN servers for better connectivity
+                    { urls: 'stun:stun.stunprotocol.org:3478' },
+                    { urls: 'stun:stun.voiparound.com' },
+                    { urls: 'stun:stun.voipbuster.com' },
+                    { urls: 'stun:stun.voipstunt.com' },
+                    { urls: 'stun:stun.voxgratia.org' },
+                    
+                    // Primary ExpressTurn TURN server (your dedicated server)
+                    {
+                        urls: 'turn:relay1.expressturn.com:3480',
+                        username: '000000002072301003',
+                        credential: '3O1GO8t7fyP3yhzXf3zRa/N5AUo='
+                    },
+                    {
+                        urls: 'turn:relay1.expressturn.com:3480?transport=tcp',
+                        username: '000000002072301003',
+                        credential: '3O1GO8t7fyP3yhzXf3zRa/N5AUo='
+                    },
+                    {
+                        urls: 'turns:relay1.expressturn.com:5349',
+                        username: '000000002072301003',
+                        credential: '3O1GO8t7fyP3yhzXf3zRa/N5AUo='
+                    },
+                    
+                    // Backup OpenRelay servers for redundancy
+                    {
+                        urls: 'turn:openrelay.metered.ca:80',
+                        username: 'openrelayproject',
+                        credential: 'openrelayproject'
+                    },
+                    {
+                        urls: 'turn:openrelay.metered.ca:443',
+                        username: 'openrelayproject',
+                        credential: 'openrelayproject'
+                    },
+                    
+                    // Backup TURN servers for redundancy
+                    {
+                        urls: 'turn:relay.backups.cz',
+                        username: 'webrtc',
+                        credential: 'webrtc'
+                    },
+                    {
+                        urls: 'turn:relay.backups.cz:443',
+                        username: 'webrtc',
+                        credential: 'webrtc'
+                    },
+                    {
+                        urls: 'turn:relay.backups.cz:443?transport=tcp',
+                        username: 'webrtc',
+                        credential: 'webrtc'
+                    },
+                    
+                    // Additional reliable TURN servers
+                    {
+                        urls: 'turn:numb.viagenie.ca',
+                        username: 'webrtc@live.com',
+                        credential: 'muazkh'
+                    },
+                    {
+                        urls: 'turn:numb.viagenie.ca:443?transport=tcp',
+                        username: 'webrtc@live.com',
+                        credential: 'muazkh'
+                    },
+                    {
+                        urls: 'turns:numb.viagenie.ca:443',
+                        username: 'webrtc@live.com',
+                        credential: 'muazkh'
+                    },
+                    
+                    // Coturn public servers
+                    {
+                        urls: 'turn:turn.bistri.com:80',
+                        username: 'homeo',
+                        credential: 'homeo'
+                    },
+                    {
+                        urls: 'turn:turn.anyfirewall.com:443?transport=tcp',
+                        username: 'webrtc',
+                        credential: 'webrtc'
+                    }
+                ],
+                // Force relay mode for ALL connections to ensure cross-network compatibility
+                iceTransportPolicy: 'relay',
+                iceCandidatePoolSize: 25,
+                bundlePolicy: 'max-bundle',
+                rtcpMuxPolicy: 'require',
+                // Enable aggressive ICE nomination
+                iceOptions: {
+                    aggressiveIceNomination: true
+                }
+            };
+            
+            console.log('🔒 Forcing TURN relay mode for all connections');
+            console.log('🔄 ICE candidate pool size:', baseConfig.iceCandidatePoolSize);
+            console.log('📡 Total TURN servers configured:', baseConfig.iceServers.filter(server => server.urls.includes('turn')).length);
+            console.log('🎯 Primary TURN server: ExpressTurn (relay1.expressturn.com)');
+            console.log('🔐 Using dedicated credentials for optimal performance');
+            
+            return baseConfig;
+        }
+        
+        const rtcConfiguration = getRTCConfiguration();
+
+        // Initialize socket connection with duplicate prevention
+        function initializeSocket() {
+            // Clean up existing socket to prevent duplicate event listeners
+            if (socket) {
+                console.log('🧹 Cleaning up existing socket connection to prevent duplicates');
+                socket.off('room-joined');
+                socket.off('user-joined');
+                socket.off('user-left');
+                socket.off('offer');
+                socket.off('answer');
+                socket.off('ice-candidate');
+                socket.off('media-state-changed');
+                socket.off('error');
+                socket.disconnect();
+                socket = null;
+            }
+            
+            console.log('🔌 Initializing new socket connection');
+            const authToken = document.getElementById('authToken').value;
+            const socketOptions = {
+                transports: ['websocket', 'polling']
+            };
+            
+            // Add authentication if token is provided
+            if (authToken && authToken.trim()) {
+                socketOptions.auth = {
+                    token: authToken.trim()
+                };
+            }
+            
+            socket = io('/', socketOptions);
+
+            // Register event listeners with duplicate prevention logging
+            console.log('📡 Registering socket event listeners');
+            socket.on('room-joined', handleRoomJoined);
+            socket.on('user-joined', handleParticipantJoined);
+            socket.on('user-left', handleParticipantLeft);
+            socket.on('offer', handleWebRTCOffer);
+            socket.on('answer', handleWebRTCAnswer);
+            socket.on('ice-candidate', handleWebRTCIceCandidate);
+            socket.on('media-state-changed', handleParticipantMediaUpdated);
+            socket.on('error', handleSocketError);
+            
+            console.log('✅ Socket initialization complete');
+        }
+
+        // Join meeting function
+        async function joinMeeting() {
+            const meetingCode = document.getElementById('meetingCode').value.trim();
+            const guestName = document.getElementById('guestName').value.trim();
+            const cameraEnabled = document.getElementById('cameraToggle').checked;
+            const microphoneEnabled = document.getElementById('microphoneToggle').checked;
+
+            if (!meetingCode || !guestName) {
+                showError('Please enter meeting code and your name');
+                return;
+            }
+
+            // Initialize socket if not already done
+            if (!socket) {
+                initializeSocket();
+            }
+
+            // Get user media (now handles failures gracefully)
+            await getUserMedia(cameraEnabled, microphoneEnabled);
+
+            // Update media settings
+            mediaSettings.camera = cameraEnabled;
+            mediaSettings.microphone = microphoneEnabled;
+
+            // Join the room
+            socket.emit('join-room', {
+                meetingCode,
+                guestName,
+                mediaSettings: {
+                    camera: cameraEnabled,
+                    microphone: microphoneEnabled
+                }
+            });
+
+            currentMeetingCode = meetingCode;
+        }
+
+        // Get user media with enhanced debugging
+        async function getUserMedia(video, audio) {
+            console.log('🎥 === GET USER MEDIA ===');
+            console.log('📋 Requested media:');
+            console.log('  Video:', video);
+            console.log('  Audio:', audio);
+            
+            try {
+                // If neither video nor audio is requested, create a dummy stream
+                if (!video && !audio) {
+                    console.warn('⚠️ No media requested, creating dummy stream for testing');
+                    console.warn('  This will result in no media being sent to other participants!');
+                    localStream = new MediaStream();
+                    console.log('📊 Dummy stream created:', localStream);
+                    return;
+                }
+
+                const constraints = {
+                    video: video ? { width: 1280, height: 720 } : false,
+                    audio: audio
+                };
+                console.log('🔧 Media constraints:', constraints);
+
+                console.log('📡 Requesting user media...');
+                localStream = await navigator.mediaDevices.getUserMedia(constraints);
+                console.log('✅ User media obtained successfully!');
+                console.log('📊 Stream details:');
+                console.log('  Stream ID:', localStream.id);
+                console.log('  Stream active:', localStream.active);
+                console.log('  Total tracks:', localStream.getTracks().length);
+                console.log('  Video tracks:', localStream.getVideoTracks().length);
+                console.log('  Audio tracks:', localStream.getAudioTracks().length);
+                
+                // Apply initial media settings
+                if (localStream.getVideoTracks().length > 0) {
+                    console.log('🎬 Setting video track enabled to:', video);
+                    localStream.getVideoTracks()[0].enabled = video;
+                    console.log('  Video track enabled:', localStream.getVideoTracks()[0].enabled);
+                }
+                if (localStream.getAudioTracks().length > 0) {
+                    console.log('🎵 Setting audio track enabled to:', audio);
+                    localStream.getAudioTracks()[0].enabled = audio;
+                    console.log('  Audio track enabled:', localStream.getAudioTracks()[0].enabled);
+                }
+                
+                console.log('🎉 getUserMedia completed successfully!');
+
+            } catch (error) {
+                console.error('❌ Error accessing media devices:', error);
+                console.error('Error details:', {
+                    name: error.name,
+                    message: error.message,
+                    constraint: error.constraint
+                });
+                console.warn('⚠️ Creating dummy stream for testing without media');
+                console.warn('  This will result in no media being sent to other participants!');
+                // Create a dummy stream to allow joining without media
+                localStream = new MediaStream();
+                console.log('📊 Dummy stream created due to error:', localStream);
+            }
+        }
+
+        // Handle room joined
+        function handleRoomJoined(data) {
+            console.log('=== ROOM JOINED EVENT ===');
+            console.log('Room data:', data);
+            console.log('Other participants count:', data.otherParticipants.length);
+            
+            localParticipant = data.participant;
+            
+            // Show meeting interface
+            document.getElementById('joinForm').classList.add('hidden');
+            document.getElementById('meetingInterface').classList.remove('hidden');
+            document.getElementById('currentMeetingCode').textContent = data.meetingCode;
+
+            // Add local video
+            addLocalVideo();
+
+            // Store other participants data for later use
+            window.otherParticipants = new Map();
+            data.otherParticipants.forEach(participant => {
+                console.log('Storing participant:', participant.socketId, participant.guestName);
+                window.otherParticipants.set(participant.socketId, participant);
+            });
+
+            // Create peer connections for existing participants with a delay to ensure local stream is ready
+            if (data.otherParticipants.length > 0) {
+                console.log('Will create peer connections for', data.otherParticipants.length, 'existing participants');
+                setTimeout(() => {
+                    if (localStream) {
+                        data.otherParticipants.forEach(participant => {
+                            console.log('Creating peer connection for existing participant:', participant.socketId, participant.guestName);
+                            createPeerConnection(participant.socketId, true);
+                        });
+                    } else {
+                        console.error('Local stream not available when creating peer connections');
+                    }
+                }, 1000);
+            } else {
+                console.log('No existing participants to connect to');
+            }
+
+            updateParticipantsList(data.otherParticipants.concat([localParticipant]));
+        }
+
+        // Handle new participant joined
+        function handleParticipantJoined(data) {
+            console.log('=== NEW PARTICIPANT JOINED ===');
+            console.log('New participant data:', data.participant);
+            console.log('Current participants count before adding:', window.otherParticipants ? window.otherParticipants.size : 0);
+            
+            // Store participant data
+            if (!window.otherParticipants) {
+                window.otherParticipants = new Map();
+            }
+            window.otherParticipants.set(data.participant.socketId, data.participant);
+            console.log('Participants count after adding:', window.otherParticipants.size);
+            
+            // Wait a bit for the new participant to be ready
+            setTimeout(() => {
+                if (localStream) {
+                    console.log('Creating peer connection for new participant:', data.participant.socketId, data.participant.guestName);
+                    createPeerConnection(data.participant.socketId, false);
+                } else {
+                    console.error('Local stream not available for new participant');
+                }
+            }, 1500);
+            updateParticipantsList();
+        }
+
+        // Handle participant left
+        function handleParticipantLeft(data) {
+            console.log('Participant left:', data.participant);
+            
+            const socketId = data.participant.socketId;
+            
+            // Close and remove peer connection
+            const peerConnection = peerConnections.get(socketId);
+            if (peerConnection) {
+                peerConnection.close();
+                peerConnections.delete(socketId);
+            }
+            
+            // Remove pending ICE candidates
+            pendingIceCandidates.delete(socketId);
+            
+            // Clean up deduplication tracking for this participant
+            console.log('🧹 Cleaning up deduplication tracking for departed participant');
+            lastOfferTimestamp.delete(socketId);
+            lastAnswerTimestamp.delete(socketId);
+            
+            // Clean up processed message hashes for this participant
+            const keysToDelete = [];
+            for (const key of processedOffers) {
+                if (key.startsWith(socketId + '-')) {
+                    keysToDelete.push(key);
+                }
+            }
+            keysToDelete.forEach(key => processedOffers.delete(key));
+            
+            const answerKeysToDelete = [];
+            for (const key of processedAnswers) {
+                if (key.startsWith(socketId + '-')) {
+                    answerKeysToDelete.push(key);
+                }
+            }
+            answerKeysToDelete.forEach(key => processedAnswers.delete(key));
+
+            // Remove participant data
+            if (window.otherParticipants) {
+                window.otherParticipants.delete(socketId);
+            }
+
+            // Remove video element
+            const videoElement = document.getElementById(`video-${socketId}`);
+            if (videoElement) {
+                videoElement.remove();
+            }
+
+            updateParticipantsList();
+        }
+
+        // Create peer connection
+        async function createPeerConnection(socketId, isInitiator) {
+            const participant = window.otherParticipants ? window.otherParticipants.get(socketId) : null;
+            const participantName = participant ? participant.guestName : 'Unknown';
+            
+            console.log(`Creating peer connection for ${socketId} (${participantName}), isInitiator: ${isInitiator}`);
+            
+            // Don't create duplicate connections
+            if (peerConnections.has(socketId)) {
+                console.log('Peer connection already exists for:', socketId);
+                return peerConnections.get(socketId);
+            }
+
+            // Ensure we have local stream before creating peer connection
+            if (!localStream) {
+                console.error('Cannot create peer connection: local stream not available');
+                return null;
+            }
+
+            const peerConnection = new RTCPeerConnection(rtcConfiguration);
+            peerConnections.set(socketId, peerConnection);
+            
+            // Set connection timeout for mobile networks
+            let connectionTimeout;
+            if (isMobileNetwork()) {
+                connectionTimeout = setTimeout(() => {
+                    if (peerConnection.iceConnectionState === 'checking' || 
+                        peerConnection.iceConnectionState === 'new') {
+                        console.warn('📱 Mobile connection timeout - forcing reconnection');
+                        handleConnectionFailure(participantName, socketId, 'timeout');
+                    }
+                }, 20000); // 20 seconds for mobile
+            } else {
+                connectionTimeout = setTimeout(() => {
+                    if (peerConnection.iceConnectionState === 'checking' || 
+                        peerConnection.iceConnectionState === 'new') {
+                        console.warn('🌐 WiFi connection timeout - forcing reconnection');
+                        handleConnectionFailure(participantName, socketId, 'timeout');
+                    }
+                }, 45000); // 45 seconds for WiFi
+            }
+            
+            // Clear timeout on successful connection
+            const clearConnectionTimeout = () => {
+                if (connectionTimeout) {
+                    clearTimeout(connectionTimeout);
+                    connectionTimeout = null;
+                }
+            };
+
+            // Add local stream to peer connection with detailed logging
+            console.log(`🎵 === ADDING LOCAL STREAM TRACKS ===`);
+            console.log(`📋 Local stream for ${participantName}:`);
+            console.log('  Local stream object:', localStream);
+            console.log('  Local stream ID:', localStream ? localStream.id : 'null');
+            console.log('  Local stream active:', localStream ? localStream.active : 'null');
+            
+            const tracks = localStream ? localStream.getTracks() : [];
+            console.log(`📊 Track analysis:`);
+            console.log('  Total tracks:', tracks.length);
+            console.log('  Video tracks:', localStream ? localStream.getVideoTracks().length : 0);
+            console.log('  Audio tracks:', localStream ? localStream.getAudioTracks().length : 0);
+            
+            if (tracks.length > 0) {
+                console.log(`🎬 Adding ${tracks.length} tracks to peer connection for ${participantName}:`);
+                tracks.forEach((track, index) => {
+                    console.log(`  Track ${index + 1}: ${track.kind}`);
+                    console.log(`    - Enabled: ${track.enabled}`);
+                    console.log(`    - Ready state: ${track.readyState}`);
+                    console.log(`    - Muted: ${track.muted}`);
+                    console.log(`    - ID: ${track.id}`);
+                    console.log(`    - Adding to peer connection...`);
+                    peerConnection.addTrack(track, localStream);
+                    console.log(`    ✅ Track added successfully`);
+                });
+                console.log(`🎉 All tracks added to peer connection for ${participantName}`);
+            } else {
+                console.warn(`⚠️ WARNING: No tracks to add for ${participantName}!`);
+                console.warn('  This means the peer connection will not send any media.');
+                console.warn('  Remote participants will not receive video/audio from this connection.');
+                console.warn('  Check getUserMedia implementation and media permissions.');
+            }
+
+            // Handle remote stream with enhanced debugging
+            peerConnection.ontrack = (event) => {
+                console.log('🎥 === ONTRACK EVENT FIRED ===');
+                console.log(`📡 Received remote ${event.track.kind} track from ${participantName}`);
+                console.log('Track details:', {
+                    kind: event.track.kind,
+                    enabled: event.track.enabled,
+                    readyState: event.track.readyState,
+                    muted: event.track.muted,
+                    id: event.track.id
+                });
+                console.log('Event streams:', event.streams);
+                console.log('Event streams length:', event.streams ? event.streams.length : 0);
+                
+                if (event.streams && event.streams[0]) {
+                    const stream = event.streams[0];
+                    console.log(`📺 Remote stream from ${participantName}:`);
+                    console.log('  Stream ID:', stream.id);
+                    console.log('  Stream active:', stream.active);
+                    console.log('  Total tracks:', stream.getTracks().length);
+                    console.log('  Video tracks:', stream.getVideoTracks().length);
+                    console.log('  Audio tracks:', stream.getAudioTracks().length);
+                    
+                    stream.getTracks().forEach((track, index) => {
+                        console.log(`  Track ${index + 1}: ${track.kind}`);
+                        console.log(`    - Enabled: ${track.enabled}`);
+                        console.log(`    - Ready state: ${track.readyState}`);
+                        console.log(`    - Muted: ${track.muted}`);
+                        console.log(`    - ID: ${track.id}`);
+                    });
+                    
+                    console.log(`🎬 Calling addRemoteVideo for ${participantName}`);
+                    addRemoteVideo(socketId, stream);
+                } else {
+                    console.warn(`⚠️ No streams received in ontrack event from ${participantName}`);
+                    console.log('Event object:', event);
+                }
+            };
+
+            // Handle ICE candidates with cross-network connectivity tracking
+            peerConnection.onicecandidate = (event) => {
+                if (event.candidate) {
+                    const candidate = event.candidate;
+                    console.log(`🧊 Sending ICE candidate to ${participantName}:`);
+                    
+                    // Parse the candidate string to extract details
+                    const candidateStr = candidate.candidate || '';
+                    const parts = candidateStr.split(' ');
+                    const type = parts[7] || 'unknown';
+                    const protocol = parts[2] || 'unknown';
+                    const address = parts[4] || 'unknown';
+                    const port = parts[5] || 'unknown';
+                    
+                    console.log(`  Type: ${type}`);
+                    console.log(`  Protocol: ${protocol}`);
+                    console.log(`  Address: ${address}`);
+                    console.log(`  Port: ${port}`);
+                    console.log(`  Full candidate: ${candidateStr}`);
+                    
+                    // Enhanced logging for cross-network debugging
+                    if (type === 'host') {
+                        console.log(`  📍 Host candidate (local network only)`);
+                        console.warn(`  ⚠️ Host candidates won't work across different networks/routers!`);
+                    } else if (type === 'srflx') {
+                        console.log(`  🌐 Server reflexive candidate (STUN server)`);
+                        console.log(`  ✅ May work for some cross-network scenarios`);
+                    } else if (type === 'relay') {
+                        console.log(`  🔄 RELAY candidate (TURN server) - PERFECT for cross-network!`);
+                        console.log(`  🌍 This candidate will work across different networks/routers`);
+                        console.log(`  ✅ Excellent for mobile data and different WiFi networks`);
+                    } else if (type === 'prflx') {
+                        console.log(`  🔍 Peer reflexive candidate`);
+                    }
+                    
+                    // Check if we're getting the expected relay candidates
+                    if (type !== 'relay') {
+                        console.warn(`⚠️ WARNING: Non-relay candidate detected!`);
+                        console.warn(`  With iceTransportPolicy='relay', we should only get relay candidates`);
+                        console.warn(`  This may indicate TURN server connectivity issues`);
+                        console.warn(`  Cross-network connectivity may fail without relay candidates`);
+                    } else {
+                        console.log(`✅ GOOD: Relay candidate found - cross-network connectivity possible`);
+                    }
+                    
+                    socket.emit('ice-candidate', {
+                        targetSocketId: socketId,
+                        candidate: event.candidate
+                    });
+                } else {
+                    console.log(`🏁 ICE candidate gathering finished for ${participantName}`);
+                    console.log(`🔍 Verifying relay candidates for cross-network connectivity...`);
+                }
+            };
+
+            // Track connection retry attempts
+            let connectionRetryCount = 0;
+            const maxRetries = isMobileNetwork() ? 5 : 3;
+    
+            
+            // Handle connection state changes with aggressive retry for mobile
+            peerConnection.onconnectionstatechange = () => {
+                console.log(`Connection state for ${participantName}:`, peerConnection.connectionState);
+                
+                if (peerConnection.connectionState === 'connecting') {
+                    // Set timeout for connection attempts (shorter for mobile)
+                    const timeoutDuration = isMobileNetwork() ? 15000 : 30000;
+                    connectionTimeout = setTimeout(() => {
+                        if (peerConnection.connectionState === 'connecting') {
+                            console.warn(`⏰ Connection timeout for ${participantName}, forcing ICE restart`);
+                            handleConnectionFailure(participantName, socketId, 'timeout');
+                        }
+                    }, timeoutDuration);
+                } else if (peerConnection.connectionState === 'connected') {
+                    // Clear timeout on successful connection
+                    if (connectionTimeout) {
+                        clearTimeout(connectionTimeout);
+                        connectionTimeout = null;
+                    }
+                    connectionRetryCount = 0; // Reset retry count on success
+                } else if (peerConnection.connectionState === 'failed') {
+                    console.error(`Connection failed for ${participantName}, retry ${connectionRetryCount + 1}/${maxRetries}`);
+                    handleConnectionFailure(participantName, socketId, 'failed');
+                }
+            };
+            
+            // Enhanced connection failure handler
+            function handleConnectionFailure(participantName, socketId, reason) {
+                if (connectionTimeout) {
+                    clearTimeout(connectionTimeout);
+                    connectionTimeout = null;
+                }
+                
+                if (connectionRetryCount < maxRetries) {
+                    connectionRetryCount++;
+                    const delay = Math.min(1000 * Math.pow(2, connectionRetryCount - 1), 5000); // Exponential backoff
+                    
+                    console.log(`🔄 Attempting connection retry ${connectionRetryCount}/${maxRetries} for ${participantName} in ${delay}ms (reason: ${reason})`);
+                    
+                    setTimeout(async () => {
+                        try {
+                            if (isMobileNetwork()) {
+                                console.log('📱 Mobile network detected - using aggressive reconnection strategy');
+                                // For mobile, recreate the entire peer connection with relay-only mode
+                                await recreatePeerConnection(socketId, participantName);
+                            } else {
+                                // For WiFi, try ICE restart first
+                                console.log('🔄 Attempting ICE restart for', participantName);
+                                peerConnection.restartIce();
+                            }
+                        } catch (error) {
+                            console.error('Error during connection retry:', error);
+                        }
+                    }, delay);
+                } else {
+                    console.error(`❌ Max retries (${maxRetries}) reached for ${participantName}. Connection permanently failed.`);
+                    if (isMobileNetwork()) {
+                        console.log('📱 Mobile network connection failed. Consider:');
+                        console.log('  - Switching to WiFi');
+                        console.log('  - Moving to an area with better signal');
+                        console.log('  - Checking if mobile carrier blocks WebRTC');
+                    }
+                }
+            }
+            
+            // Function to recreate peer connection for mobile networks
+            async function recreatePeerConnection(socketId, participantName) {
+                console.log(`🔄 Recreating peer connection for ${participantName} with mobile-optimized settings`);
+                
+                // Close existing connection
+                if (peerConnections.has(socketId)) {
+                    peerConnections.get(socketId).close();
+                    peerConnections.delete(socketId);
+                }
+                
+                // Create new connection with forced relay mode
+                const newPeerConnection = await createPeerConnection(socketId, true);
+                if (newPeerConnection) {
+                    console.log(`✅ New peer connection created for ${participantName}`);
+                }
+            }
+
+            // Handle ICE connection state changes with mobile-specific logic
+            let iceFailureCount = 0;
+            peerConnection.oniceconnectionstatechange = () => {
+                console.log(`ICE connection state for ${participantName}:`, peerConnection.iceConnectionState);
+                
+                switch (peerConnection.iceConnectionState) {
+                    case 'checking':
+                        console.log(`🔍 ICE checking connectivity for ${participantName}`);
+                        if (isMobileNetwork()) {
+                            console.log('📱 Mobile network - ICE checking may take longer due to NAT traversal');
+                        }
+                        break;
+                    case 'connected':
+                        console.log(`✅ ICE connected successfully for ${participantName}`);
+                        iceFailureCount = 0; // Reset failure count on success
+                        clearConnectionTimeout(); // Clear timeout on success
+                        break;
+                    case 'completed':
+                        console.log(`🎉 ICE connection completed for ${participantName}`);
+                        iceFailureCount = 0;
+                        clearConnectionTimeout(); // Clear timeout on success
+                        break;
+                    case 'failed':
+                        iceFailureCount++;
+                        console.error(`❌ ICE connection failed for ${participantName} (failure #${iceFailureCount})`);
+                        
+                        if (isMobileNetwork()) {
+                            console.log('📱 Mobile network ICE failure detected');
+                            console.log('💡 Mobile troubleshooting:');
+                            console.log('  - Carrier may be blocking WebRTC traffic');
+                            console.log('  - Try switching to WiFi');
+                            console.log('  - Move to area with better signal strength');
+                            console.log('  - Some carriers require VPN for WebRTC');
+                            
+                            // For mobile, trigger immediate reconnection attempt
+                            if (iceFailureCount <= 2) {
+                                console.log('🔄 Triggering mobile-specific reconnection attempt');
+                                setTimeout(() => {
+                                    handleConnectionFailure(participantName, socketId, 'ice-failed');
+                                }, 2000);
+                            }
+                        } else {
+                            console.log('💡 WiFi troubleshooting tips:');
+                            console.log('  - Check firewall settings');
+                            console.log('  - Verify TURN servers are accessible');
+                            console.log('  - Network may be blocking WebRTC traffic');
+                        }
+                        break;
+                    case 'disconnected':
+                        console.warn(`⚠️ ICE disconnected for ${participantName}`);
+                        if (isMobileNetwork()) {
+                            console.log('📱 Mobile ICE disconnection - may be due to network switching');
+                            // Give mobile networks more time to reconnect
+                            setTimeout(() => {
+                                if (peerConnection.iceConnectionState === 'disconnected') {
+                                    console.log('🔄 ICE still disconnected after grace period, attempting restart');
+                                    peerConnection.restartIce();
+                                }
+                            }, 5000);
+                        }
+                        break;
+                    case 'closed':
+                        console.log(`🔒 ICE connection closed for ${participantName}`);
+                        break;
+                }
+            };
+            
+            // Handle ICE gathering state changes
+            peerConnection.onicegatheringstatechange = () => {
+                console.log(`ICE gathering state for ${participantName}:`, peerConnection.iceGatheringState);
+                if (peerConnection.iceGatheringState === 'complete') {
+                    console.log(`🔍 ICE gathering completed for ${participantName}`);
+                }
+            };
+
+            // Create offer if initiator
+            if (isInitiator) {
+                try {
+                    console.log(`Creating offer for ${participantName}`);
+                    const offer = await peerConnection.createOffer({
+                        offerToReceiveAudio: true,
+                        offerToReceiveVideo: true
+                    });
+                    await peerConnection.setLocalDescription(offer);
+                    
+                    console.log(`Sending offer to ${participantName}`);
+                    socket.emit('offer', {
+                        targetSocketId: socketId,
+                        offer: offer
+                    });
+                } catch (error) {
+                    console.error(`Error creating offer for ${participantName}:`, error);
+                }
+            }
+
+            return peerConnection;
+        }
+
+        // Handle WebRTC offer with signaling state validation and deduplication
+        async function handleWebRTCOffer(data) {
+            console.log('=== RECEIVED WEBRTC OFFER ===');
+            console.log('Offer from:', data.fromSocketId);
+            console.log('Offer data:', data.offer);
+            
+            const participant = window.otherParticipants ? window.otherParticipants.get(data.fromSocketId) : null;
+            const participantName = participant ? participant.guestName : 'Unknown';
+            console.log('Participant name:', participantName);
+            
+            // Generate unique offer identifier for deduplication
+            const offerHash = data.offer ? JSON.stringify(data.offer).substring(0, 50) : 'no-offer';
+            const offerKey = `${data.fromSocketId}-${offerHash}`;
+            const currentTime = Date.now();
+            
+            // Check for duplicate offers within 5 seconds
+            const lastOfferTime = lastOfferTimestamp.get(data.fromSocketId);
+            if (lastOfferTime && (currentTime - lastOfferTime) < 5000) {
+                console.warn(`⚠️ DUPLICATE OFFER DETECTED from ${participantName}`);
+                console.warn(`  Last offer was ${currentTime - lastOfferTime}ms ago`);
+                console.warn(`  Ignoring duplicate to prevent signaling state errors`);
+                return;
+            }
+            
+            if (processedOffers.has(offerKey)) {
+                console.warn(`⚠️ DUPLICATE OFFER HASH DETECTED from ${participantName}`);
+                console.warn(`  Offer hash: ${offerHash}`);
+                console.warn(`  Ignoring duplicate to prevent signaling state errors`);
+                return;
+            }
+            
+            // Track this offer to prevent future duplicates
+            processedOffers.add(offerKey);
+            lastOfferTimestamp.set(data.fromSocketId, currentTime);
+            console.log(`✅ Processing new offer from ${participantName} (hash: ${offerHash})`);
+            
+            let peerConnection = peerConnections.get(data.fromSocketId);
+            if (!peerConnection) {
+                console.log('Creating new peer connection for offer from:', participantName);
+                peerConnection = await createPeerConnection(data.fromSocketId, false);
+                if (!peerConnection) {
+                    console.error('Failed to create peer connection for offer');
+                    return;
+                }
+            }
+            
+            // Validate signaling state before processing offer
+            console.log('Current signaling state before processing offer:', peerConnection.signalingState);
+            console.log('Current local description:', peerConnection.localDescription ? 'exists' : 'null');
+            console.log('Current remote description:', peerConnection.remoteDescription ? 'exists' : 'null');
+            
+            if (peerConnection.signalingState === 'stable' && peerConnection.remoteDescription) {
+                console.warn(`⚠️ WARNING: Ignoring duplicate offer from ${participantName}`);
+                console.warn(`  Peer connection is already in stable state with remote description`);
+                console.warn(`  This indicates duplicate or out-of-order signaling`);
+                return;
+            }
+            
+            if (peerConnection.signalingState !== 'stable' && peerConnection.signalingState !== 'have-remote-offer') {
+                console.error(`❌ ERROR: Cannot process offer from ${participantName}`);
+                console.error(`  Expected signaling state: 'stable' or 'have-remote-offer'`);
+                console.error(`  Current signaling state: '${peerConnection.signalingState}'`);
+                return;
+            }
+
+            try {
+                console.log('Setting remote description for offer from:', participantName);
+                await peerConnection.setRemoteDescription(new RTCSessionDescription(data.offer));
+                
+                console.log('Creating answer for:', participantName);
+                const answer = await peerConnection.createAnswer();
+                await peerConnection.setLocalDescription(answer);
+                
+                console.log('Sending answer to:', participantName);
+                socket.emit('answer', {
+                    targetSocketId: data.fromSocketId,
+                    answer: answer
+                });
+                console.log('Answer sent successfully to:', participantName);
+                
+                // Process any pending ICE candidates after setting remote description
+                const pendingCandidates = pendingIceCandidates.get(data.fromSocketId);
+                if (pendingCandidates && pendingCandidates.length > 0) {
+                    console.log(`Processing ${pendingCandidates.length} pending ICE candidates for ${participantName}`);
+                    for (const candidate of pendingCandidates) {
+                        try {
+                            await peerConnection.addIceCandidate(new RTCIceCandidate(candidate));
+                            console.log('✅ Added pending ICE candidate for:', participantName);
+                        } catch (error) {
+                            console.error('❌ Error adding pending ICE candidate for', participantName, ':', error);
+                        }
+                    }
+                    pendingIceCandidates.delete(data.fromSocketId);
+                }
+            } catch (error) {
+                console.error('Error handling offer from', participantName, ':', error);
+            }
+        }
+
+        // Handle WebRTC answer with signaling state validation and deduplication
+        async function handleWebRTCAnswer(data) {
+            console.log('=== RECEIVED WEBRTC ANSWER ===');
+            console.log('Answer from:', data.fromSocketId);
+            console.log('Answer data:', data.answer);
+            
+            const participant = window.otherParticipants ? window.otherParticipants.get(data.fromSocketId) : null;
+            const participantName = participant ? participant.guestName : 'Unknown';
+            console.log('Participant name:', participantName);
+            
+            // Generate unique answer identifier for deduplication
+            const answerHash = data.answer ? JSON.stringify(data.answer).substring(0, 50) : 'no-answer';
+            const answerKey = `${data.fromSocketId}-${answerHash}`;
+            const currentTime = Date.now();
+            
+            // Check for duplicate answers within 5 seconds
+            const lastAnswerTime = lastAnswerTimestamp.get(data.fromSocketId);
+            if (lastAnswerTime && (currentTime - lastAnswerTime) < 5000) {
+                console.warn(`⚠️ DUPLICATE ANSWER DETECTED from ${participantName}`);
+                console.warn(`  Last answer was ${currentTime - lastAnswerTime}ms ago`);
+                console.warn(`  Ignoring duplicate to prevent signaling state errors`);
+                return;
+            }
+            
+            if (processedAnswers.has(answerKey)) {
+                console.warn(`⚠️ DUPLICATE ANSWER HASH DETECTED from ${participantName}`);
+                console.warn(`  Answer hash: ${answerHash}`);
+                console.warn(`  Ignoring duplicate to prevent signaling state errors`);
+                return;
+            }
+            
+            // Track this answer to prevent future duplicates
+            processedAnswers.add(answerKey);
+            lastAnswerTimestamp.set(data.fromSocketId, currentTime);
+            console.log(`✅ Processing new answer from ${participantName} (hash: ${answerHash})`);
+            
+            const peerConnection = peerConnections.get(data.fromSocketId);
+            if (peerConnection) {
+                console.log('Current signaling state before setting remote description:', peerConnection.signalingState);
+                console.log('Current local description:', peerConnection.localDescription ? 'exists' : 'null');
+                console.log('Current remote description:', peerConnection.remoteDescription ? 'exists' : 'null');
+                
+                // Validate signaling state before setting remote description
+                if (peerConnection.signalingState === 'stable') {
+                    console.warn(`⚠️ WARNING: Ignoring duplicate answer from ${participantName}`);
+                    console.warn(`  Peer connection is already in stable state`);
+                    console.warn(`  This indicates duplicate or out-of-order signaling`);
+                    return;
+                }
+                
+                if (peerConnection.signalingState !== 'have-local-offer') {
+                    console.error(`❌ ERROR: Cannot set answer from ${participantName}`);
+                    console.error(`  Expected signaling state: 'have-local-offer'`);
+                    console.error(`  Current signaling state: '${peerConnection.signalingState}'`);
+                    return;
+                }
+                
+                try {
+                    console.log('Setting remote description for answer from:', participantName);
+                    const answerDescription = new RTCSessionDescription(data.answer);
+                    console.log('Created RTCSessionDescription:', answerDescription);
+                    
+                    await peerConnection.setRemoteDescription(answerDescription);
+                    console.log('✅ Successfully set remote description for answer from:', participantName);
+                    console.log('New signaling state:', peerConnection.signalingState);
+                    console.log('Peer connection state:', peerConnection.connectionState);
+                    console.log('ICE connection state:', peerConnection.iceConnectionState);
+                    
+                    // Process any pending ICE candidates
+                    const pendingCandidates = pendingIceCandidates.get(data.fromSocketId);
+                    if (pendingCandidates && pendingCandidates.length > 0) {
+                        console.log(`Processing ${pendingCandidates.length} pending ICE candidates for ${participantName}`);
+                        for (const candidate of pendingCandidates) {
+                            try {
+                                await peerConnection.addIceCandidate(new RTCIceCandidate(candidate));
+                                console.log('✅ Added pending ICE candidate for:', participantName);
+                            } catch (error) {
+                                console.error('❌ Error adding pending ICE candidate for', participantName, ':', error);
+                            }
+                        }
+                        pendingIceCandidates.delete(data.fromSocketId);
+                    }
+                } catch (error) {
+                    console.error('❌ Error handling answer from', participantName, ':', error);
+                    console.error('Error details:', error.message);
+                    console.error('Signaling state during error:', peerConnection.signalingState);
+                }
+            } else {
+                console.error('No peer connection found for answer from:', participantName);
+            }
+        }
+
+        // Handle ICE candidate with cross-network connectivity tracking
+        async function handleWebRTCIceCandidate(data) {
+            console.log('=== RECEIVED ICE CANDIDATE ===');
+            console.log('ICE candidate from:', data.fromSocketId);
+            
+            const participant = window.otherParticipants ? window.otherParticipants.get(data.fromSocketId) : null;
+            const participantName = participant ? participant.guestName : 'Unknown';
+            console.log('Participant name:', participantName);
+            
+            // Log received candidate details with cross-network analysis
+            const candidate = data.candidate;
+            if (candidate) {
+                console.log(`🧊 Received ICE candidate from ${participantName}:`);
+                
+                // Parse the candidate string to extract details
+                const candidateStr = candidate.candidate || '';
+                const parts = candidateStr.split(' ');
+                const type = parts[7] || 'unknown';
+                const protocol = parts[2] || 'unknown';
+                const address = parts[4] || 'unknown';
+                const port = parts[5] || 'unknown';
+                
+                console.log(`  Type: ${type}`);
+                console.log(`  Protocol: ${protocol}`);
+                console.log(`  Address: ${address}`);
+                console.log(`  Port: ${port}`);
+                console.log(`  Full candidate: ${candidateStr}`);
+                
+                // Enhanced candidate type analysis for cross-network debugging
+                if (type === 'host') {
+                    console.log(`  📍 Host candidate (local network)`);
+                    console.warn(`  ⚠️ Host candidates may not work across different networks`);
+                } else if (type === 'srflx') {
+                    console.log(`  🌐 Server reflexive candidate (STUN server)`);
+                    console.log(`  ✅ STUN candidates can work across networks with proper NAT`);
+                } else if (type === 'relay') {
+                    console.log(`  🔄 Relay candidate (TURN server) - BEST for cross-network connectivity`);
+                    console.log(`  ✅ EXCELLENT: Relay candidates ensure cross-network connectivity`);
+                } else if (type === 'prflx') {
+                    console.log(`  🔍 Peer reflexive candidate`);
+                    console.log(`  ℹ️ Peer reflexive candidates discovered during connectivity checks`);
+                }
+                
+                // Check if we're receiving expected relay candidates for cross-network connectivity
+                if (type !== 'relay') {
+                    console.warn(`⚠️ CROSS-NETWORK WARNING: Received non-relay candidate from ${participantName}`);
+                    console.warn(`  This may indicate the remote peer is not using forced relay mode`);
+                    console.warn(`  Cross-network connectivity may fail without relay candidates`);
+                    console.warn(`  Remote peer should configure iceTransportPolicy='relay'`);
+                } else {
+                    console.log(`✅ GOOD: Receiving relay candidate from ${participantName} - cross-network possible`);
+                }
+            }
+            
+            const peerConnection = peerConnections.get(data.fromSocketId);
+            if (peerConnection && peerConnection.remoteDescription) {
+                try {
+                    console.log('Adding ICE candidate from:', participantName);
+                    await peerConnection.addIceCandidate(new RTCIceCandidate(data.candidate));
+                    console.log('Successfully added ICE candidate from:', participantName);
+                    console.log('ICE connection state after adding candidate:', peerConnection.iceConnectionState);
+                } catch (error) {
+                    console.error('Error adding ICE candidate from', participantName, ':', error);
+                }
+            } else {
+                console.log('Peer connection not ready for ICE candidate from:', participantName);
+                console.log('Has peer connection:', !!peerConnection);
+                console.log('Has remote description:', peerConnection ? !!peerConnection.remoteDescription : false);
+                
+                if (peerConnection && !peerConnection.remoteDescription) {
+                    // Queue ICE candidate for later processing
+                    console.log('🔄 Queueing ICE candidate for later processing from:', participantName);
+                    if (!pendingIceCandidates.has(data.fromSocketId)) {
+                        pendingIceCandidates.set(data.fromSocketId, []);
+                    }
+                    pendingIceCandidates.get(data.fromSocketId).push(data.candidate);
+                    console.log('Queued candidates count for', participantName, ':', pendingIceCandidates.get(data.fromSocketId).length);
+                } else if (!peerConnection) {
+                    console.error('No peer connection found for ICE candidate from:', participantName);
+                }
+            }
+        }
+
+        // Add local video
+        function addLocalVideo() {
+            const videoContainer = document.createElement('div');
+            videoContainer.className = 'video-container local';
+            videoContainer.id = `video-local`;
+
+            const overlay = document.createElement('div');
+            overlay.className = 'video-overlay';
+            overlay.innerHTML = `
+                <span class="participant-name">${localParticipant.guestName} (You)</span>
+                <div class="media-status">
+                    <div class="media-indicator ${mediaSettings.camera ? 'active' : 'inactive'}" id="local-camera-indicator">📹</div>
+                    <div class="media-indicator ${mediaSettings.microphone ? 'active' : 'inactive'}" id="local-mic-indicator">🎤</div>
+                </div>
+            `;
+
+            // Check if we have actual video tracks and camera is enabled
+            const hasVideoTrack = localStream && localStream.getVideoTracks().length > 0;
+            if (!mediaSettings.camera || !hasVideoTrack) {
+                const placeholder = document.createElement('div');
+                placeholder.className = 'no-video-placeholder';
+                placeholder.textContent = localParticipant.guestName.charAt(0).toUpperCase();
+                videoContainer.appendChild(placeholder);
+            } else {
+                const video = document.createElement('video');
+                video.className = 'video-element';
+                video.autoplay = true;
+                video.muted = true;
+                video.playsInline = true;
+                video.srcObject = localStream;
+                videoContainer.appendChild(video);
+            }
+
+            videoContainer.appendChild(overlay);
+            document.getElementById('videoGrid').appendChild(videoContainer);
+        }
+
+        // Add remote video with enhanced debugging
+        function addRemoteVideo(socketId, stream) {
+            console.log('🎬 === ADD REMOTE VIDEO CALLED ===');
+            console.log('📋 Parameters:');
+            console.log('  Socket ID:', socketId);
+            console.log('  Stream object:', stream);
+            console.log('  Stream ID:', stream ? stream.id : 'null');
+            console.log('  Stream active:', stream ? stream.active : 'null');
+            console.log('  Stream tracks count:', stream ? stream.getTracks().length : 0);
+            
+            if (stream) {
+                console.log('📊 Stream analysis:');
+                stream.getTracks().forEach((track, index) => {
+                    console.log(`  Track ${index + 1}:`);
+                    console.log(`    - Kind: ${track.kind}`);
+                    console.log(`    - Enabled: ${track.enabled}`);
+                    console.log(`    - Ready state: ${track.readyState}`);
+                    console.log(`    - Muted: ${track.muted}`);
+                    console.log(`    - ID: ${track.id}`);
+                });
+            }
+            
+            // Get participant data
+            const participant = window.otherParticipants ? window.otherParticipants.get(socketId) : null;
+            const participantName = participant ? participant.guestName : 'Unknown Participant';
+            console.log('👤 Participant name:', participantName);
+            console.log('👥 Other participants map:', window.otherParticipants);
+            
+            // Remove existing video if any
+            const existingVideo = document.getElementById(`video-${socketId}`);
+            if (existingVideo) {
+                console.log('🗑️ Removing existing video element for:', participantName);
+                existingVideo.remove();
+            }
+
+            console.log('📦 Creating video container for:', participantName);
+            const videoContainer = document.createElement('div');
+            videoContainer.className = 'video-container';
+            videoContainer.id = `video-${socketId}`;
+            console.log('📦 Video container created with ID:', videoContainer.id);
+
+            // Check if stream has video tracks
+            const videoTracks = stream.getVideoTracks();
+            const audioTracks = stream.getAudioTracks();
+            const hasVideo = videoTracks.length > 0 && videoTracks[0].enabled;
+            const hasAudio = audioTracks.length > 0 && audioTracks[0].enabled;
+            
+            console.log(`🎥 Media analysis for ${participantName}:`);
+            console.log(`  Video tracks: ${videoTracks.length}, enabled: ${hasVideo}`);
+            console.log(`  Audio tracks: ${audioTracks.length}, enabled: ${hasAudio}`);
+            if (videoTracks.length > 0) {
+                console.log(`  Video track details:`, {
+                    enabled: videoTracks[0].enabled,
+                    readyState: videoTracks[0].readyState,
+                    muted: videoTracks[0].muted
+                });
+            }
+
+            if (hasVideo) {
+                console.log('📺 Creating video element for:', participantName);
+                const video = document.createElement('video');
+                video.className = 'video-element';
+                video.autoplay = true;
+                video.playsInline = true;
+                video.muted = false; // Don't mute remote video
+                
+                console.log('🔗 Setting srcObject for video element');
+                video.srcObject = stream;
+                console.log('✅ srcObject set successfully');
+                
+                // Add comprehensive event listeners for debugging
+                video.onloadstart = () => {
+                    console.log(`📡 Video load started for ${participantName}`);
+                };
+                video.onloadedmetadata = () => {
+                    console.log(`📊 Video metadata loaded for ${participantName}`);
+                    console.log(`  Video dimensions: ${video.videoWidth}x${video.videoHeight}`);
+                    console.log(`  Video duration: ${video.duration}`);
+                };
+                video.oncanplay = () => {
+                    console.log(`▶️ Video can start playing for ${participantName}`);
+                };
+                video.onplay = () => {
+                    console.log(`🎬 Video started playing for ${participantName}`);
+                };
+                video.onplaying = () => {
+                    console.log(`🎥 Video is playing for ${participantName}`);
+                };
+                video.onerror = (e) => {
+                    console.error(`❌ Video error for ${participantName}:`, e);
+                    console.error('Video error details:', video.error);
+                };
+                video.onstalled = () => {
+                    console.warn(`⏸️ Video stalled for ${participantName}`);
+                };
+                video.onwaiting = () => {
+                    console.warn(`⏳ Video waiting for ${participantName}`);
+                };
+                
+                console.log('📎 Appending video element to container');
+                videoContainer.appendChild(video);
+                console.log('✅ Video element appended successfully');
+            } else {
+                console.log('🚫 No video track available, creating placeholder for:', participantName);
+                // Show placeholder when no video
+                const placeholder = document.createElement('div');
+                placeholder.className = 'no-video-placeholder';
+                placeholder.textContent = participantName.charAt(0).toUpperCase();
+                videoContainer.appendChild(placeholder);
+                console.log('📝 Placeholder created and appended');
+            }
+
+            console.log('🎨 Creating overlay for:', participantName);
+            const overlay = document.createElement('div');
+            overlay.className = 'video-overlay';
+            overlay.innerHTML = `
+                <span class="participant-name">${participantName}</span>
+                <div class="media-status">
+                    <div class="media-indicator ${hasVideo ? 'active' : 'inactive'}" id="${socketId}-camera-indicator">📹</div>
+                    <div class="media-indicator ${hasAudio ? 'active' : 'inactive'}" id="${socketId}-mic-indicator">🎤</div>
+                </div>
+            `;
+            console.log('✅ Overlay created successfully');
+
+            console.log('📎 Appending overlay to video container');
+            videoContainer.appendChild(overlay);
+            console.log('✅ Overlay appended to container');
+            
+            console.log('🏠 Finding videoGrid element');
+            const videoGrid = document.getElementById('videoGrid');
+            console.log('🏠 VideoGrid element:', videoGrid);
+            
+            if (videoGrid) {
+                console.log('📍 Appending video container to videoGrid');
+                videoGrid.appendChild(videoContainer);
+                console.log('🎉 SUCCESS: Video container added to DOM!');
+                console.log('📊 VideoGrid children count:', videoGrid.children.length);
+            } else {
+                console.error('❌ ERROR: videoGrid element not found!');
+            }
+        }
+
+        // Media control functions
+        function toggleCamera() {
+            if (localStream) {
+                const videoTrack = localStream.getVideoTracks()[0];
+                if (videoTrack) {
+                    videoTrack.enabled = !videoTrack.enabled;
+                    mediaSettings.camera = videoTrack.enabled;
+                    
+                    // Update UI
+                    const btn = document.getElementById('cameraBtn');
+                    btn.className = `control-btn ${mediaSettings.camera ? 'active' : 'inactive'}`;
+                    
+                    // Update local video display
+                    updateLocalVideoDisplay();
+                    
+                    // Notify other participants
+                    socket.emit('toggle-video', { enabled: mediaSettings.camera });
+                }
+            }
+        }
+
+        function toggleMicrophone() {
+            if (localStream) {
+                const audioTrack = localStream.getAudioTracks()[0];
+                if (audioTrack) {
+                    audioTrack.enabled = !audioTrack.enabled;
+                    mediaSettings.microphone = audioTrack.enabled;
+                    
+                    // Update UI
+                    const btn = document.getElementById('microphoneBtn');
+                    btn.className = `control-btn ${mediaSettings.microphone ? 'active' : 'inactive'}`;
+                    
+                    // Update indicator
+                    const indicator = document.getElementById('local-mic-indicator');
+                    if (indicator) {
+                        indicator.className = `media-indicator ${mediaSettings.microphone ? 'active' : 'inactive'}`;
+                    }
+                    
+                    // Notify other participants
+                    socket.emit('toggle-audio', { enabled: mediaSettings.microphone });
+                }
+            }
+        }
+
+        function toggleScreenShare() {
+            // Screen sharing implementation would go here
+            console.log('Screen sharing not implemented yet');
+        }
+
+        function updateLocalVideoDisplay() {
+            const localVideoContainer = document.getElementById('video-local');
+            if (localVideoContainer) {
+                const video = localVideoContainer.querySelector('.video-element');
+                const placeholder = localVideoContainer.querySelector('.no-video-placeholder');
+                const indicator = document.getElementById('local-camera-indicator');
+                
+                if (mediaSettings.camera) {
+                    if (placeholder) {
+                        placeholder.remove();
+                    }
+                    if (!video) {
+                        const newVideo = document.createElement('video');
+                        newVideo.className = 'video-element';
+                        newVideo.autoplay = true;
+                        newVideo.muted = true;
+                        newVideo.playsInline = true;
+                        newVideo.srcObject = localStream;
+                        localVideoContainer.insertBefore(newVideo, localVideoContainer.querySelector('.video-overlay'));
+                    }
+                } else {
+                    if (video) {
+                        video.remove();
+                    }
+                    if (!placeholder) {
+                        const newPlaceholder = document.createElement('div');
+                        newPlaceholder.className = 'no-video-placeholder';
+                        newPlaceholder.textContent = localParticipant.guestName.charAt(0).toUpperCase();
+                        localVideoContainer.insertBefore(newPlaceholder, localVideoContainer.querySelector('.video-overlay'));
+                    }
+                }
+                
+                if (indicator) {
+                    indicator.className = `media-indicator ${mediaSettings.camera ? 'active' : 'inactive'}`;
+                }
+            }
+        }
+
+        function leaveMeeting() {
+            if (socket) {
+                socket.emit('leave-room');
+                socket.disconnect();
+            }
+            
+            // Stop local stream
+            if (localStream) {
+                localStream.getTracks().forEach(track => track.stop());
+            }
+            
+            // Close all peer connections
+            peerConnections.forEach(pc => pc.close());
+            peerConnections.clear();
+            
+            // Reset UI
+            document.getElementById('meetingInterface').classList.add('hidden');
+            document.getElementById('joinForm').classList.remove('hidden');
+            document.getElementById('videoGrid').innerHTML = '';
+            
+            // Reset form
+            document.getElementById('meetingCode').value = '';
+            document.getElementById('guestName').value = '';
+        }
+
+        // Handle participant media updates
+        function handleParticipantMediaUpdated(data) {
+            console.log('Participant media updated:', data);
+            const { socketId, mediaType, enabled } = data;
+            
+            // Update participant data
+            if (window.otherParticipants && window.otherParticipants.has(socketId)) {
+                const participant = window.otherParticipants.get(socketId);
+                participant.mediaSettings[mediaType] = enabled;
+            }
+            
+            // Update UI indicators
+            if (mediaType === 'camera') {
+                const indicator = document.getElementById(`${socketId}-camera-indicator`);
+                if (indicator) {
+                    indicator.className = `media-indicator ${enabled ? 'active' : 'inactive'}`;
+                }
+                
+                // Update video display
+                const videoContainer = document.getElementById(`video-${socketId}`);
+                if (videoContainer) {
+                    const video = videoContainer.querySelector('.video-element');
+                    const placeholder = videoContainer.querySelector('.no-video-placeholder');
+                    
+                    if (enabled && placeholder) {
+                        // Show video, hide placeholder
+                        placeholder.style.display = 'none';
+                        if (video) video.style.display = 'block';
+                    } else if (!enabled && video) {
+                        // Hide video, show placeholder
+                        video.style.display = 'none';
+                        if (!placeholder) {
+                            const participant = window.otherParticipants.get(socketId);
+                            const newPlaceholder = document.createElement('div');
+                            newPlaceholder.className = 'no-video-placeholder';
+                            newPlaceholder.textContent = participant ? participant.guestName.charAt(0).toUpperCase() : 'U';
+                            videoContainer.insertBefore(newPlaceholder, videoContainer.querySelector('.video-overlay'));
+                        }
+                    }
+                }
+            } else if (mediaType === 'microphone') {
+                const indicator = document.getElementById(`${socketId}-mic-indicator`);
+                if (indicator) {
+                    indicator.className = `media-indicator ${enabled ? 'active' : 'inactive'}`;
+                }
+            }
+        }
+
+        // Update participants list
+        function updateParticipantsList(participants) {
+            const participantsList = document.getElementById('participantsList');
+            const participantCount = document.getElementById('participantCount');
+            
+            if (participants) {
+                participantsList.innerHTML = '';
+                participants.forEach(participant => {
+                    const item = document.createElement('div');
+                    item.className = 'participant-item';
+                    item.innerHTML = `
+                        <span>${participant.guestName}${participant.socketId === socket.id ? ' (You)' : ''}</span>
+                        <div class="media-status">
+                            <div class="media-indicator ${participant.mediaSettings.camera ? 'active' : 'inactive'}">📹</div>
+                            <div class="media-indicator ${participant.mediaSettings.microphone ? 'active' : 'inactive'}">🎤</div>
+                        </div>
+                    `;
+                    participantsList.appendChild(item);
+                });
+                
+                participantCount.textContent = `${participants.length} participant${participants.length !== 1 ? 's' : ''}`;
+            }
+        }
+
+        // Handle socket errors
+        function handleSocketError(error) {
+            console.error('Socket error:', error);
+            showError(error.message || 'Connection error occurred');
+        }
+
+        // Show error message
+        function showError(message) {
+            const errorDiv = document.getElementById('joinError');
+            errorDiv.textContent = message;
+            errorDiv.classList.remove('hidden');
+            
+            setTimeout(() => {
+                errorDiv.classList.add('hidden');
+            }, 5000);
+        }
+
+        // Initialize on page load
+        document.addEventListener('DOMContentLoaded', () => {
+            // Set initial control button states
+            document.getElementById('cameraBtn').className = 'control-btn active';
+            document.getElementById('microphoneBtn').className = 'control-btn active';
+        });
+    </script>
+</body>
+</html>
